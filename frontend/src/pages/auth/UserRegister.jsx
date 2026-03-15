@@ -17,14 +17,14 @@ const UserRegister = () => {
         const password = e.target.password.value;
 
 
-        const response = await axios.post("http://localhost:3000/api/auth/user/register", {
+        const response = await axios.post("https://food-backend-seven-khaki.vercel.app/api/auth/user/register", {
             fullName: firstName + " " + lastName,
             email,
             password
         },
-        {
-            withCredentials: true
-        })
+            {
+                withCredentials: true
+            })
 
         console.log(response.data);
 
