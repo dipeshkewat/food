@@ -5,6 +5,7 @@ const authRoutes = require('./routes/auth.routes');
 const foodRoutes = require('./routes/food.routes');
 const foodPartnerRoutes = require('./routes/food-partner.routes');
 const cors = require('cors');
+const connectDB = require('./db/db');
 
 const app = express();
 app.use(cors({
@@ -13,6 +14,18 @@ app.use(cors({
 }));
 app.use(cookieParser());
 app.use(express.json());
+
+// Ensure DB is connected before handling any request
+// Critical for Vercel serverless cold starts
+app.use(async (req, res, next) => {
+    try {
+        await connectDB();
+        next();
+    } catch (err) {
+        console.error("Failed to connect to MongoDB:", err);
+        res.status(500).json({ message: "Database connection failed" });
+    }
+});
 
 app.get("/", (req, res) => {
     res.send("Hello World");

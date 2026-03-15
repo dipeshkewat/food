@@ -1,29 +1,34 @@
 const mongoose = require('mongoose');
-const dns = require('dns');
 
-// Only override DNS for local development. In Vercel (production), this can break AWS Lambda networking.
-if (process.env.NODE_ENV !== 'production') {
-    try {
-        dns.setServers(['8.8.8.8', '8.8.4.4']);
-    } catch (e) {
-        console.warn("Failed to set DNS servers:", e.message);
-    }
-}
-
-// Global variable to track connection state in Serverless environment (Vercel)
-let isConnected = false;
+// Cache the connection promise so all concurrent requests share it
+let cachedConnection = null;
 
 async function connectDB() {
-    if (isConnected) {
+    // If already connected, return immediately
+    if (mongoose.connection.readyState === 1) {
+        return;
+    }
+
+    // If a connection attempt is already in progress, reuse it
+    if (cachedConnection) {
+        await cachedConnection;
         return;
     }
 
     try {
-        const db = await mongoose.connect(process.env.MONGODB_URI);
-        isConnected = db.connections[0].readyState === 1;
+        cachedConnection = mongoose.connect(process.env.MONGODB_URI, {
+            bufferCommands: false,       // Fail fast instead of buffering for 10s
+            serverSelectionTimeoutMS: 10000,
+            connectTimeoutMS: 10000,
+        });
+
+        await cachedConnection;
         console.log("MongoDB connected successfully");
     } catch (err) {
-        console.log("MongoDB connection error:", err);
+        // Reset the cache so the next request can retry
+        cachedConnection = null;
+        console.error("MongoDB connection error:", err);
+        throw err; // Re-throw so the caller knows connection failed
     }
 }
 
